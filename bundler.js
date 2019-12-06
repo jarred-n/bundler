@@ -1,5 +1,7 @@
 const fs = require('fs');
+const _path = require('path');
 const babelParser = require('@babel/parser');
+const babel = require('@babel/core');
 const traverse = require('@babel/traverse').default;
 
 const moduleAnalyser = (filename) => {
@@ -7,16 +9,24 @@ const moduleAnalyser = (filename) => {
     let ast = babelParser.parse(content, {
         sourceType: 'module'
     });
-    const dependencies = [];
+    const dependencies = {};
     traverse(ast, {
         ImportDeclaration(path) {
             const node = path.node;
-            const dirname = path.dirname(filename);
-            console.log(dirname);
-            dependencies.push(node.source.value)
+            const dirname = _path.dirname(filename);
+            const newFile = './' + _path.join(dirname, node.source.value);
+            dependencies[node.source.value] = newFile;
         }
-    })
-    console.log(ast.program.body);
+    });
+    const { code } = babel.transformFromAst(ast, null, {
+        presets: ['@babel/preset-env']
+    });
+    return {
+        filename,
+        dependencies,
+        code
+    }
 }
 
-moduleAnalyser('./src/index.js');
+const moduleInfo = moduleAnalyser('./src/index.js');
+console.log(moduleInfo);
